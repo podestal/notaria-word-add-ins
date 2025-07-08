@@ -27,15 +27,25 @@ function action(event: Office.AddinCommands.Event) {
  * Save document content to a remote server.
  */
 function saveToServer(event: Office.AddinCommands.Event) {
+  console.log("[WORD-ADDIN] Save to Server button clicked at:", new Date().toISOString());
+  
+  // Show a visible notification to confirm button click
+  Office.context.document.setSelectedDataAsync("Button clicked! Processing...", { coercionType: Office.CoercionType.Text });
+  
   Word.run(async context => {
+    console.log("[WORD-ADDIN] Starting to read document content...");
+    
     const body = context.document.body;
     body.load("text");
     await context.sync();
-
+    
     const documentText = body.text;
+    console.log("[WORD-ADDIN] Document text length:", documentText.length);
+    console.log("[WORD-ADDIN] Document preview:", documentText.substring(0, 100) + "...");
 
     // 🔁 Replace this with your actual API URL
-    await fetch("https://yourserver.com/api/save", {
+    console.log("[WORD-ADDIN] Attempting to send to server...");
+    const response = await fetch("https://yourserver.com/api/save", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -43,10 +53,12 @@ function saveToServer(event: Office.AddinCommands.Event) {
       body: JSON.stringify({ content: documentText })
     });
 
-    console.log("Document content sent to server");
+    console.log("[WORD-ADDIN] Server response status:", response.status);
+    console.log("[WORD-ADDIN] Document content sent to server successfully");
   }).catch(error => {
-    console.error("Error saving document:", error);
+    console.error("[WORD-ADDIN] Error saving document:", error);
   }).finally(() => {
+    console.log("[WORD-ADDIN] Function completed");
     event.completed();
   });
 }
