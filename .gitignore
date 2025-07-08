@@ -1,0 +1,39 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Vite build
+dist/
+.vite/
+
+# Office Add-in cache
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Mac and system
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+
+# Logs
+logs
+*.log
+*.tsbuildinfo
+
+# Editor folders
+.idea/
+.vscode/
+
+# Manifest build output (if generated)
+manifest*.xml
+
+# Office Add-in sideloading
+~$*.docx
+*.sideload
