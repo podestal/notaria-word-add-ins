@@ -28,35 +28,22 @@ function action(event: Office.AddinCommands.Event) {
  */
 function saveToServer(event: Office.AddinCommands.Event) {
   console.log("[WORD-ADDIN] Save to Server button clicked at:", new Date().toISOString());
-  
+  Office.context.document.setSelectedDataAsync(`Button clicked!`, { coercionType: Office.CoercionType.Text });
   // Show a visible notification to confirm button click
-  Office.context.document.setSelectedDataAsync("Button clicked! Processing...", { coercionType: Office.CoercionType.Text });
-  
   Word.run(async context => {
-    console.log("[WORD-ADDIN] Starting to read document content...");
-    
-    const body = context.document.body;
-    body.load("text");
+    const props = context.document.properties;
+    props.load("title");
     await context.sync();
-    
-    const documentText = body.text;
-    console.log("[WORD-ADDIN] Document text length:", documentText.length);
-    console.log("[WORD-ADDIN] Document preview:", documentText.substring(0, 100) + "...");
 
-    // 🔁 Replace this with your actual API URL
-    console.log("[WORD-ADDIN] Attempting to send to server...");
-    const response = await fetch("https://yourserver.com/api/save", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ content: documentText })
-    });
+    const fileName = props.title;
+    console.log("Document title:", fileName);
+    alert("Document title: " + fileName);
+    Office.context.document.setSelectedDataAsync(`Button clicked! ${fileName}`, { coercionType: Office.CoercionType.Text });
 
-    console.log("[WORD-ADDIN] Server response status:", response.status);
-    console.log("[WORD-ADDIN] Document content sent to server successfully");
+    Office.context.document.setSelectedDataAsync(`${fileName}`, { coercionType: Office.CoercionType.Text });
   }).catch(error => {
     console.error("[WORD-ADDIN] Error saving document:", error);
+    alert("Error: " + error.message);
   }).finally(() => {
     console.log("[WORD-ADDIN] Function completed");
     event.completed();
