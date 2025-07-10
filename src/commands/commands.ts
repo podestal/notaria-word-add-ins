@@ -30,10 +30,11 @@ function action(event: Office.AddinCommands.Event) {
  */
 function saveToServer(event: Office.AddinCommands.Event) {
   Word.run(async context => {
+    // 1. Read custom property
     const customProps = context.document.properties.customProperties;
     customProps.load("items");
     await context.sync();
-  
+
     let docId = null;
     for (const prop of customProps.items) {
       if (prop.key === "documentoGeneradoId") {
@@ -41,14 +42,53 @@ function saveToServer(event: Office.AddinCommands.Event) {
         break;
       }
     }
-    console.log("Document ID:", docId);
-    axios.post("127.0.0.1:8001/docs/documentos/", {
-      Kardex: docId,
-    }).then(response => {
-      console.log("Response:", response.data);
-    }).catch(error => {
-      console.error("Error:", error);
+
+    // 2. Write debug info to document
+    context.document.body.insertParagraph(
+      "DEBUG: About to POST to backend: " + docId,
+      Word.InsertLocation.end
+    );
+    await context.sync();
+
+    // 3. Make the POST request
+    try {
+      const response = await axios.post("https://quenteh.podestalservers.com/docs/documentos/", { Kardex: docId });
+      // 4. Write response to document
+      context.document.body.insertParagraph(
+        "DEBUG: Response: " + JSON.stringify(response.data),
+        Word.InsertLocation.end
+      );
+      await context.sync();
+    } catch (error: any) {
+      // 5. Write detailed error info to document
+      let errorDetails = [
+        "DEBUG: Error: " + error,
+        "AxiosError.message: " + (error.message || ""),
+        "AxiosError.code: " + (error.code || ""),
+        "AxiosError.config: " + JSON.stringify(error.config || {}),
+        "AxiosError.response: " + (error.response ? JSON.stringify(error.response.data) : "No response"),
+        "AxiosError.request: " + (error.request ? error.request.toString() : "No request"),
+        "AxiosError.stack: " + (error.stack || "")
+      ].join("\n");
+
+      context.document.body.insertParagraph(
+        errorDetails,
+        Word.InsertLocation.end
+      );
+      await context.sync();
+    }
+  })
+  .catch(error => {
+    Word.run(async context2 => {
+      context2.document.body.insertParagraph(
+        "DEBUG: Word.run Error: " + error,
+        Word.InsertLocation.end
+      );
+      await context2.sync();
     });
+  })
+  .finally(() => {
+    event.completed();
   });
 }
 
