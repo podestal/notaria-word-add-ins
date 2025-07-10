@@ -1,3 +1,5 @@
+import axios from "axios";
+
 /* global Office, Word */
 
 Office.onReady(() => {
@@ -27,26 +29,26 @@ function action(event: Office.AddinCommands.Event) {
  * Save document content to a remote server.
  */
 function saveToServer(event: Office.AddinCommands.Event) {
-  console.log("[WORD-ADDIN] Save to Server button clicked at:", new Date().toISOString());
-  Office.context.document.setSelectedDataAsync(`Button clicked!`, { coercionType: Office.CoercionType.Text });
-  // Show a visible notification to confirm button click
   Word.run(async context => {
-    const props = context.document.properties;
-    props.load("title");
+    const customProps = context.document.properties.customProperties;
+    customProps.load("items");
     await context.sync();
-
-    const fileName = props.title;
-    console.log("Document title:", fileName);
-    alert("Document title: " + fileName);
-    Office.context.document.setSelectedDataAsync(`Button clicked! ${fileName}`, { coercionType: Office.CoercionType.Text });
-
-    Office.context.document.setSelectedDataAsync(`${fileName}`, { coercionType: Office.CoercionType.Text });
-  }).catch(error => {
-    console.error("[WORD-ADDIN] Error saving document:", error);
-    alert("Error: " + error.message);
-  }).finally(() => {
-    console.log("[WORD-ADDIN] Function completed");
-    event.completed();
+  
+    let docId = null;
+    for (const prop of customProps.items) {
+      if (prop.key === "documentoGeneradoId") {
+        docId = prop.value;
+        break;
+      }
+    }
+    console.log("Document ID:", docId);
+    axios.post("127.0.0.1:8001/docs/documentos/", {
+      Kardex: docId,
+    }).then(response => {
+      console.log("Response:", response.data);
+    }).catch(error => {
+      console.error("Error:", error);
+    });
   });
 }
 
