@@ -29,66 +29,128 @@ function action(event: Office.AddinCommands.Event) {
  * Save document content to a remote server.
  */
 function saveToServer(event: Office.AddinCommands.Event) {
-  Word.run(async context => {
-    // 1. Read custom property
-    const customProps = context.document.properties.customProperties;
-    customProps.load("items");
-    await context.sync();
+  // No need for Word.run here since you don't use 'context'
+  Office.context.document.getFileAsync(Office.FileType.Compressed, { sliceSize: 65536 }, function (result) {
+    if (result.status === Office.AsyncResultStatus.Succeeded) {
+      const file = result.value;
+      const sliceCount = file.sliceCount;
+      let slicesReceived = 0, docdata = [];
 
-    let docId = null;
-    for (const prop of customProps.items) {
-      if (prop.key === "documentoGeneradoId") {
-        docId = prop.value;
-        break;
-      }
+      // Use a function expression instead of a function declaration
+      const getSliceAsync = (sliceIndex: number) => {
+        file.getSliceAsync(sliceIndex, function (sliceResult) {
+          if (sliceResult.status === Office.AsyncResultStatus.Succeeded) {
+            docdata[sliceIndex] = sliceResult.value.data;
+            slicesReceived++;
+            if (slicesReceived === sliceCount) {
+              // All slices received, combine into a Blob
+              const byteArray = docdata.reduce((acc, curr) => acc.concat(Array.from(curr)), []);
+              const blob = new Blob([new Uint8Array(byteArray)], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+
+              // Try to get the file name from the document properties
+              Word.run(async context2 => {
+                // Get the actual filename from the document URL
+                let fileName = "document.docx"; // fallback
+                
+                try {
+                  // Try to get the filename from the document URL
+                  const documentUrl = Office.context.document.url;
+                  if (documentUrl) {
+                    const urlParts = documentUrl.split('/');
+                    const lastPart = urlParts[urlParts.length - 1];
+                    if (lastPart && lastPart.includes('.')) {
+                      // Decode URL-encoded characters to preserve underscores and special chars
+                      fileName = decodeURIComponent(lastPart);
+                    }
+                  }
+                  
+                  // If we couldn't get it from URL, try document properties
+                  if (fileName === "document.docx") {
+                    const props = context2.document.properties;
+                    props.load("title");
+                    await context2.sync();
+                    if (props.title) {
+                      fileName = props.title;
+                    }
+                  }
+                  
+                  // Debug: Log the filename we're using
+                  console.log("Extracted filename:", fileName);
+                  // Word.run(async contextDebug => {
+                  //   contextDebug.document.body.insertParagraph(
+                  //     "DEBUG: Using filename: " + fileName,
+                  //     Word.InsertLocation.end
+                  //   );
+                  //   await contextDebug.sync();
+                  // });
+                } catch (error) {
+                  console.log("Error getting filename:", error);
+                }
+
+                // Ensure .docx extension
+                if (!fileName.endsWith(".docx")) fileName += ".docx";
+
+                // 2. Send to backend as FormData
+                const formData = new FormData();
+                formData.append("file", blob, fileName);
+
+                axios.post("https://quenteh.podestalservers.com/docs/upload-docx/", formData, {
+                  headers: {
+                    'Content-Type': 'multipart/form-data'
+                  }
+                })
+                  .then(response => {
+                    console.log(response.data);
+                    // Word.run(async context3 => {
+                    //   context3.document.body.insertParagraph(
+                    //     "DEBUG: Upload response: " + JSON.stringify(response.data),
+                    //     Word.InsertLocation.end
+                    //   );
+                    //   await context3.sync();
+                    // });
+                  })
+                  .catch(error => {
+                    console.log(error);
+                    // Word.run(async context3 => {
+                    //   context3.document.body.insertParagraph(
+                    //     "DEBUG: Upload error: " + error,
+                    //     Word.InsertLocation.end
+                    //   );
+                    //   await context3.sync();
+                    // });
+                  })
+                  .finally(() => {
+                    file.closeAsync();
+                    event.completed();
+                  });
+              });
+            } else {
+              getSliceAsync(sliceIndex + 1);
+            }
+          } else {
+            // Word.run(async context2 => {
+            //   context2.document.body.insertParagraph(
+            //     "DEBUG: Error getting slice: " + sliceResult.error.message,
+            //     Word.InsertLocation.end
+            //   );
+            //   await context2.sync();
+            // });
+            file.closeAsync();
+            event.completed();
+          }
+        });
+      };
+      getSliceAsync(0);
+    } else {
+      // Word.run(async context2 => {
+      //   context2.document.body.insertParagraph(
+      //     "DEBUG: Error getting file: " + result.error.message,
+      //     Word.InsertLocation.end
+      //   );
+      //   await context2.sync();
+      // });
+      event.completed();
     }
-
-    // 2. Write debug info to document
-    context.document.body.insertParagraph(
-      "DEBUG: About to POST to backend: " + docId,
-      Word.InsertLocation.end
-    );
-    await context.sync();
-
-    // 3. Make the POST request
-    try {
-      const response = await axios.post("https://quenteh.podestalservers.com/docs/documentos/", { Kardex: docId });
-      // 4. Write response to document
-      context.document.body.insertParagraph(
-        "DEBUG: Response: " + JSON.stringify(response.data),
-        Word.InsertLocation.end
-      );
-      await context.sync();
-    } catch (error: any) {
-      // 5. Write detailed error info to document
-      let errorDetails = [
-        "DEBUG: Error: " + error,
-        "AxiosError.message: " + (error.message || ""),
-        "AxiosError.code: " + (error.code || ""),
-        "AxiosError.config: " + JSON.stringify(error.config || {}),
-        "AxiosError.response: " + (error.response ? JSON.stringify(error.response.data) : "No response"),
-        "AxiosError.request: " + (error.request ? error.request.toString() : "No request"),
-        "AxiosError.stack: " + (error.stack || "")
-      ].join("\n");
-
-      context.document.body.insertParagraph(
-        errorDetails,
-        Word.InsertLocation.end
-      );
-      await context.sync();
-    }
-  })
-  .catch(error => {
-    Word.run(async context2 => {
-      context2.document.body.insertParagraph(
-        "DEBUG: Word.run Error: " + error,
-        Word.InsertLocation.end
-      );
-      await context2.sync();
-    });
-  })
-  .finally(() => {
-    event.completed();
   });
 }
 
