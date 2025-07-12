@@ -47,24 +47,18 @@ function saveToServer(event: Office.AddinCommands.Event) {
               const byteArray = docdata.reduce((acc, curr) => acc.concat(Array.from(curr)), []);
               const blob = new Blob([new Uint8Array(byteArray)], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
 
-              // Try to get the file name from the document properties
               Word.run(async context2 => {
                 // Get the actual filename from the document URL
                 let fileName = "document.docx"; // fallback
-                
                 try {
-                  // Try to get the filename from the document URL
                   const documentUrl = Office.context.document.url;
                   if (documentUrl) {
                     const urlParts = documentUrl.split('/');
                     const lastPart = urlParts[urlParts.length - 1];
                     if (lastPart && lastPart.includes('.')) {
-                      // Decode URL-encoded characters to preserve underscores and special chars
                       fileName = decodeURIComponent(lastPart);
                     }
                   }
-                  
-                  // If we couldn't get it from URL, try document properties
                   if (fileName === "document.docx") {
                     const props = context2.document.properties;
                     props.load("title");
@@ -73,68 +67,57 @@ function saveToServer(event: Office.AddinCommands.Event) {
                       fileName = props.title;
                     }
                   }
-                  
-                  // Debug: Log the filename we're using
                   console.log("Extracted filename:", fileName);
-                  // Word.run(async contextDebug => {
-                  //   contextDebug.document.body.insertParagraph(
-                  //     "DEBUG: Using filename: " + fileName,
-                  //     Word.InsertLocation.end
-                  //   );
-                  //   await contextDebug.sync();
-                  // });
                 } catch (error) {
                   console.log("Error getting filename:", error);
                 }
-
-                // Ensure .docx extension
                 if (!fileName.endsWith(".docx")) fileName += ".docx";
 
                 // 2. Send to backend as FormData
                 const formData = new FormData();
                 formData.append("file", blob, fileName);
 
-                axios.post("https://quenteh.podestalservers.com/docs/upload-docx/", formData, {
-                  headers: {
-                    'Content-Type': 'multipart/form-data'
+                // --- Dialog API integration ---
+                let waitingDialog = null;
+
+                // Open waiting dialog
+                Office.context.ui.displayDialogAsync(
+                  window.location.origin + "/assets/feedback-waiting.html",
+                  { height: 30, width: 20, displayInIframe: true },
+                  function (asyncResult) {
+                    waitingDialog = asyncResult.value;
+
+                    axios.post("https://quenteh.podestalservers.com/docs/upload-docx/", formData, {
+                      headers: { 'Content-Type': 'multipart/form-data' }
+                    })
+                      .then(response => {
+                        console.log(response.data);
+                        if (waitingDialog) waitingDialog.close();
+                        Office.context.ui.displayDialogAsync(
+                          window.location.origin + "/assets/feedback-success.html",
+                          { height: 30, width: 20, displayInIframe: true }
+                        );
+                      })
+                      .catch(error => {
+                        console.log(error);
+                        if (waitingDialog) waitingDialog.close();
+                        Office.context.ui.displayDialogAsync(
+                          window.location.origin + "/assets/feedback-error.html",
+                          { height: 30, width: 20, displayInIframe: true }
+                        );
+                      })
+                      .finally(() => {
+                        file.closeAsync();
+                        event.completed();
+                      });
                   }
-                })
-                  .then(response => {
-                    console.log(response.data);
-                    // Word.run(async context3 => {
-                    //   context3.document.body.insertParagraph(
-                    //     "DEBUG: Upload response: " + JSON.stringify(response.data),
-                    //     Word.InsertLocation.end
-                    //   );
-                    //   await context3.sync();
-                    // });
-                  })
-                  .catch(error => {
-                    console.log(error);
-                    // Word.run(async context3 => {
-                    //   context3.document.body.insertParagraph(
-                    //     "DEBUG: Upload error: " + error,
-                    //     Word.InsertLocation.end
-                    //   );
-                    //   await context3.sync();
-                    // });
-                  })
-                  .finally(() => {
-                    file.closeAsync();
-                    event.completed();
-                  });
+                );
+                // --- End Dialog API integration ---
               });
             } else {
               getSliceAsync(sliceIndex + 1);
             }
           } else {
-            // Word.run(async context2 => {
-            //   context2.document.body.insertParagraph(
-            //     "DEBUG: Error getting slice: " + sliceResult.error.message,
-            //     Word.InsertLocation.end
-            //   );
-            //   await context2.sync();
-            // });
             file.closeAsync();
             event.completed();
           }
@@ -142,13 +125,6 @@ function saveToServer(event: Office.AddinCommands.Event) {
       };
       getSliceAsync(0);
     } else {
-      // Word.run(async context2 => {
-      //   context2.document.body.insertParagraph(
-      //     "DEBUG: Error getting file: " + result.error.message,
-      //     Word.InsertLocation.end
-      //   );
-      //   await context2.sync();
-      // });
       event.completed();
     }
   });
