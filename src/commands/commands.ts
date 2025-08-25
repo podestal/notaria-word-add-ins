@@ -87,7 +87,7 @@ function saveToServer(event: Office.AddinCommands.Event) {
                   function (asyncResult) {
                     waitingDialog = asyncResult.value;
 
-                    axios.post("https://quenteh.podestalservers.com/docs/upload-docx/", formData, {
+                    axios.post("https://quenteh.podestalservers.com/docs/save_doc/", formData, {
                       headers: { 'Content-Type': 'multipart/form-data' }
                     })
                       .then(response => {
