@@ -37,3 +37,5 @@ manifest*.xml
 # Office Add-in sideloading
 ~$*.docx
 *.sideload
+
+.env.*

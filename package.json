@@ -14,6 +14,7 @@
   "scripts": {
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
+    "build:test": "webpack --mode development --env testing",
     "dev-server": "webpack serve --mode development",
     "lint": "office-addin-lint check",
     "lint:fix": "office-addin-lint fix",
@@ -50,6 +51,7 @@
     "babel-loader": "^9.1.3",
     "concurrently": "^9.2.0",
     "copy-webpack-plugin": "^12.0.2",
+    "dotenv-webpack": "^8.1.1",
     "eslint-plugin-office-addins": "^4.0.3",
     "eslint-plugin-react": "^7.28.0",
     "file-loader": "^6.2.0",
