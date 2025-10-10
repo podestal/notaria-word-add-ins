@@ -71,6 +71,11 @@ function saveToServer(event: Office.AddinCommands.Event) {
                 } catch (error) {
                   console.log("Error getting filename:", error);
                 }
+                
+                // Remove duplicate file suffix pattern like (1), (2), (6), etc.
+                // This handles cases where Word appends numbers to duplicate filenames
+                fileName = fileName.replace(/\(\d+\)(?=\.docx$)/i, "");
+                
                 if (!fileName.endsWith(".docx")) fileName += ".docx";
 
                 // 2. Send to backend as FormData
