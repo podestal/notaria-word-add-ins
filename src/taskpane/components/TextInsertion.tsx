@@ -6,6 +6,7 @@ import { Button, Field, Textarea, tokens, makeStyles } from "@fluentui/react-com
 
 interface TextInsertionProps {
   insertText: (text: string) => void;
+  saveDocument: () => Promise<void>;
 }
 
 const useStyles = makeStyles({
@@ -30,6 +31,7 @@ const useStyles = makeStyles({
 
 const TextInsertion: React.FC<TextInsertionProps> = (props: TextInsertionProps) => {
   const [text, setText] = useState<string>("Some text.");
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const handleTextInsertion = async () => {
     await props.insertText(text);
@@ -37,6 +39,15 @@ const TextInsertion: React.FC<TextInsertionProps> = (props: TextInsertionProps) 
 
   const handleTextChange = async (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(event.target.value);
+  };
+
+  const handleSaveDocument = async () => {
+    setIsSaving(true);
+    try {
+      await props.saveDocument();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const styles = useStyles();
@@ -49,6 +60,10 @@ const TextInsertion: React.FC<TextInsertionProps> = (props: TextInsertionProps) 
       <Field className={styles.instructions}>Click the button to insert text.</Field>
       <Button appearance="primary" disabled={false} size="large" onClick={handleTextInsertion}>
         Insert text
+      </Button>
+      <Field className={styles.instructions}>Need to upload the current Word file?</Field>
+      <Button appearance="secondary" disabled={isSaving} size="large" onClick={handleSaveDocument}>
+        {isSaving ? "Saving..." : "Save document"}
       </Button>
     </div>
   );

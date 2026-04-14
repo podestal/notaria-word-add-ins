@@ -15,8 +15,9 @@ $manifestPath = Join-Path $scriptDir $manifestFile
 if (-not (Test-Path $manifestPath)) {
     Write-Host "ERROR: manifest.xml not found in $scriptDir" -ForegroundColor Red
     Write-Host ""
-    Write-Host "Press any key to close..." -ForegroundColor Gray
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    Write-Host 'Press any key to close...' -ForegroundColor Gray
+    $readKeyOptions = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
+    $null = $Host.UI.RawUI.ReadKey($readKeyOptions)
     exit 1
 }
 
@@ -28,7 +29,7 @@ if (-not (Test-Path $appDataPath)) {
 
 $destManifest = Join-Path $appDataPath "NotariaAddin.xml"
 Copy-Item -Path $manifestPath -Destination $destManifest -Force
-Write-Host "  ✓ Manifest copied to: $destManifest" -ForegroundColor Green
+Write-Host "  [OK] Manifest copied to: $destManifest" -ForegroundColor Green
 Write-Host ""
 
 Write-Host "Step 2: Configuring Office Registry..." -ForegroundColor Yellow
@@ -39,7 +40,7 @@ if (-not (Test-Path $devPath)) {
     New-Item -Path $devPath -Force | Out-Null
 }
 Set-ItemProperty -Path $devPath -Name "EnableWefDeveloperMode" -Value 1 -Type DWORD -Force
-Write-Host "  ✓ Developer mode enabled" -ForegroundColor Green
+Write-Host '  [OK] Developer mode enabled' -ForegroundColor Green
 
 # Add manifest to shared folder catalog
 $catalogPath = "HKCU:\Software\Microsoft\Office\16.0\Wef\Catalog\SharedFolder"
@@ -48,7 +49,7 @@ if (-not (Test-Path $catalogPath)) {
 }
 $manifestFullPath = (Resolve-Path $manifestPath).Path
 Set-ItemProperty -Path $catalogPath -Name "Path" -Value $appDataPath -Type String -Force
-Write-Host "  ✓ Registry configured" -ForegroundColor Green
+Write-Host '  [OK] Registry configured' -ForegroundColor Green
 Write-Host ""
 
 Write-Host "================================================" -ForegroundColor Green
@@ -62,5 +63,6 @@ Write-Host "Manifest installed to: $destManifest" -ForegroundColor Cyan
 Write-Host ""
 
 # Pause before closing
-Write-Host "Press any key to close..." -ForegroundColor Gray
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+Write-Host 'Press any key to close...' -ForegroundColor Gray
+$readKeyOptions = [System.Management.Automation.Host.ReadKeyOptions]::NoEcho -bor [System.Management.Automation.Host.ReadKeyOptions]::IncludeKeyDown
+$null = $Host.UI.RawUI.ReadKey($readKeyOptions)
